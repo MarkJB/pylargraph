@@ -8,6 +8,9 @@ COMPORT = "COM6"
 BAUD = 57600
 TIMEOUT = "timeout=0"
 
+
+
+
 # Global variable for serial coms function
 # This exists to tell the next call of the comms functions
 # that the previous exit was because a 'READY' was seen after
@@ -187,123 +190,98 @@ def setupPolargraph():
     print("")
 
 
-#Call polargraph setup function
-setupPolargraph()
-        
+def pen(upDown):
+    if upDown == 'up' or upDown == 'Up' or upDown == 'UP' or upDown == 'False':
+        # Pen Up
+        writeCommandToPolargraph("C14,END\n")
+    elif upDown == 'down' or upDown == 'Down' or upDown == 'DOWN' or upDown == 'True':
+        # Pen Down
+        writeCommandToPolargraph("C13,END\n")
+    else:
+        # Does not compute
+        print("Debug: pen() takes either up or down. I'm sorry Dave... I can't do that")
+        pass
+
+def moveTo(x,y):
+    # Assume coords are in mm so convert to native by calling ik.getStringLengths(x,y)
+    # ik.getStringLengths(x,y) returns a tuple with 4 items, a pair of native coords
+    # followed by the string length in mm
+    nativeCoords = ik.getStringLengths(x,y)
+    # As this is a move, lift the pen first just to be sure
+    pen("up")
+    command = "C01," + str(nativeCoords[0]) + "," + str(nativeCoords[1]) + ",END\n"
+    print("Debug: moveTo(%s,%s) Command to run: %s" % ( x,y,(command,)))
+    writeCommandToPolargraph(command)
+    
+
+def drawTo(x,y,segmentLength):
+    # Assume coords are in mm so convert to native by calling ik.getStringLengths(x,y)
+    # ik.getStringLengths(x,y) returns a tuple with 4 items, a pair of native coords
+    # followed by the string length in mm
+    nativeCoords = ik.getStringLengths(x,y)
+    # As this is a move, drop the pen first just to be sure
+    pen("down")
+    command = "C17," + str(nativeCoords[0]) + "," + str(nativeCoords[1]) + "," + str(segmentLength) + ",END\n"
+    print("Debug: drawTo(%s,%s) Command to run: %s" % ( x,y,(command,)))
+    writeCommandToPolargraph(command)
+    # and lift the pen afterwards so we don't bleed out the pen on the paper
+    pen("up")
+       
 def test1():
     # Servo Up/Down 
-    commandList = ["C13,63,END\n","C14,125,END\n"]
-    print("Test 1: Sending pen up/down commands to Polargraph")
+    #commandList = ["C13,63,END\n","C14,125,END\n"]
+    print("Test 1: Testing wrapper functions")
     print("")
+
+    # test pen() function
+    #pen("down")
+    #pen("up")
+
+    # Move (don't draw) to the 4 corners of a box that defines the notional drawing area (end at the home position)
+    # These coords are from my machine, are in mm and define the corners of the page extents
     
-    for each in commandList:
-        print("Command to send: '%s'" % each.strip())
-        writeCommandToPolargraph(each)
-        #input("Command completed, press enter to continue") 
+    # top left, top right, bottom right, top left
+    #moveTo(95,240)
+    #moveTo(515,240)
+    #moveTo(515,834)
+    #moveTo(95,834)
+    #moveTo(95,240)
+
+    # home
+    #moveTo(305,120)
+    
+
+    # Draw a box around the notional drawing area (end at the home position)
+    # These coords are from my machine, are in mm and will draw the page edges
+
+    # top left, top right, bottom right, top left
+    moveTo(95,240)
+    drawTo(515,240,2)
+    drawTo(515,834,2)
+    drawTo(95,834,2)
+    drawTo(95,240,2)
+    # home
+    moveTo(305,120)
+    
     #input("Test completed, press enter to continue") 
 
-def test2():
-    # Move
-    commandList = ["C01,564,1237,END\n","C01,1237,564,END\n","C01,2131,1826,END\n","C01,1826,2131,END\n","C01,305,119,END\n"]
-    print("Test 2: Move to top left then move to all 4 corners of the page ending up where we started")
-    print("")
-    
-    for each in commandList:
-        print("Command to send: '%s'" % each.strip())
-        writeCommandToPolargraph(each)
-        #input("Command completed, press enter to continue") 
-    #input("Test completed, press enter to continue") 
 
-def test3():
-    # Move & Draw
-    #ommandList = ["C01,630,1200,END\n","C17,1200,630,END\n","C17,2000,1800,END\n","C17,1800,2000,END\n","C17,630,1200,END\n"]
-    commandList = ["C01,601,1219,END\n","C17,1217,608,END\n","C17,2077,1788,END\n","C17,1791,2076,END\n","C17,601,1212,END\n"]
-    print("Test 3: Move to top left then draw a line to all 4 corners of the page ending up where we started")
-    print("")
-    
-    for each in commandList:
-        print("Command to send: '%s'" % each.strip())
-        writeCommandToPolargraph(each)
-        #input("Command completed, press enter to continue") 
-    #input("Test completed, press enter to continue") 
-
-def test4():
-    # Move & Draw
-    commandList = ["C01,601,1219,END\n","C17,1217,608,2,END\n","C17,2077,1788,2,END\n","C17,1791,2076,2,END\n","C17,601,1212,2,END\n"]
-    print("Test 4: Move to top left then draw a line to all 4 corners of the page ending up where we started")
-    print("")
-    
-    for each in commandList:
-        print("Command to send: '%s'" % each.strip())
-        writeCommandToPolargraph(each)
-        #input("Command completed, press enter to continue") 
-    #input("Test completed, press enter to continue") 
-
-def test5():
-    # Move & Draw
-    #ommandList = ["C01,630,1200,END\n","C17,1200,630,END\n","C17,2000,1800,END\n","C17,1800,2000,END\n","C17,630,1200,END\n"]
-    commandList = ["C01,601,1219,END\n","C17,1217,608,1,END\n","C17,2077,1788,1,END\n","C17,1791,2076,1,END\n","C17,601,1212,1,END\n"]
-    print("Test 5: Same as test 3 but supplying the segment length. Move to top left then draw a line to all 4 corners of the page ending up where we started")
-    print("")
-    
-    for each in commandList:
-        print("Command to send: '%s'" % each.strip())
-        writeCommandToPolargraph(each)
-        #input("Command completed, press enter to continue") 
-    #input("Test completed, press enter to continue"
-
-def test6():
-    # Random Draw based on cartesian co-ods (convert with ik.py)
-    result = ik.getStringLengths((711,711))
-    print(result)
     
 
-  
+# Setup the Polargraph once
+setupPolargraph()  
 
 while True:
     #print("Calling twitter search")
     #tweetLastSeenID, lastTweetCount = twitSearch(tweetLastSeenID)
     #print("Result of twitSearch(): Tweet Count=%s, Most recent Tweet ID=%s" %(lastTweetCount, tweetLastSeenID))
     #print("")
-    #commandList, lastX, lastY = generatePolargraphCommands(lastTweetCount, lastX, lastY)
-    #print("Generated polargraph commands:")
-    #print(commandList)
+  
 
-    #Test code for the generatePolargraphCommands() function
-    #lastX = 0
-    #lastY = 0
-    #for x in range(0,10):
-    #    pseudoTweetCount = random.randrange(1, 100, 1)
-    #    #print("pseudoTweetCount = %s" %pseudoTweetCount)
-    #    commandList, lastX, lastY = generatePolargraphCommands(pseudoTweetCount, lastX, lastY)
-    #    print(commandList)
+    # Run a test
+    test1()
+   
+    print("sleeping...")
+    time.sleep(25) 
 
 
-    # Servo Up/Down ### Pass
-    #test1()
-
-    # Move ### ?
-    #test2()
-
-    # test3()
-    # See https://github.com/euphy/polargraph/wiki/Polargraph-machine-commands-and-responses
-    # Search page for "Move pen direct"
-    # Default is 2 !?! but it looks like the segment length is NOT optional so yeah - that might be why this fails.
-
-    # Move & Draw. case with no segment length supplied. ###Fail 
-    #test3()    
-    #print("sleeping...")
-    #time.sleep(25) 
-
-    # Move & Draw. Segment length = 2 ###Pass
-    #test4()
-    #print("sleeping...")
-    #time.sleep(25)
-
-    # Move & Draw Segment length = 1. ###Pass
-    #test5()
-    #print("sleeping...")
-    #time.sleep(25)
-
-    test6()
-    time.sleep(10)
