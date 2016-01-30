@@ -3,12 +3,28 @@ import time
 import random
 import serial
 import ik
+import math
 
+# Polargraph settings
+# Serial settings
 COMPORT = "COM6"
 BAUD = 57600
-TIMEOUT = "timeout=0"
-
-
+# Physical dimensions
+polargraphWidthInMM = 610
+polargraphHeightInMM = 1165
+polargraphHomeXInMM = polargraphWidthInMM/2
+polargraphHomeYInMM = 120
+pageWidthInMM = 420
+pageHeightInMM = 594
+pageXOffsetInMM = 95
+pageYOffsetInMM = 240
+# Grid dimensions
+cellWidthInMM = 25
+cellHeightInMM = 25
+numberOfCols = math.floor(pageWidthInMM / cellWidthInMM)
+numberOfRows = math.floor(pageHeightInMM / cellHeightInMM)
+xOffSetRemainder = math.floor((pageWidthInMM - (numberOfCols * cellWidthInMM)) / 2)
+yOffSetRemainder = math.floor((pageHeightInMM - (numberOfRows * cellHeightInMM)) / 2)
 
 
 # Global variable for serial coms function
@@ -17,32 +33,34 @@ TIMEOUT = "timeout=0"
 # exiting the function so the next call doesn't have to wait
 # for the polargraph to send another 'READY' message.
 polargraphReadySeen = False
-
 #Open serial port at baud and a timeout of secs
 serialPort = serial.Serial(COMPORT,BAUD,timeout=10)
-# Wait a while for the controller to respond
-time.sleep(3)
-#serialPort.read(1000)
 
+# Global variables for TwitterSearch
 tweetLastSeenID = 0
 lastTweetCount = 0
 lastX = 0
 lastY = 0
 
+# Other global variables
+
+
 def twitSearch(tweetLastSeen):
-    #print("In function twitSearch()")
+    print("In function twitSearch()")
     tweetSearchCount = 0
     try:
         tso = TwitterSearchOrder()
         tso.set_keywords(['disaster'])
+        #tso.add_keyword(['poverty'])
         tso.set_language('en')
-        tso.set_include_entities(False)
+        #tso.set_include_entities(False)
+
         if tweetLastSeen > 0:
-            #print("I have a previous value for lastseen_id, asking for 100 results")
+            print("I have a previous value for lastseen_id %s, asking for 100 results" % tweetLastSeen)
             tso.set_since_id(tweetLastSeen)
             tso.set_count(100)
         else:
-            #print("No value for lastseen_id, asking for one result")
+            print("No value for lastseen_id, asking for one result")
             tso.set_count(1)
 
         ts = TwitterSearch(
@@ -51,48 +69,35 @@ def twitSearch(tweetLastSeen):
             access_token = '',
             access_token_secret = '')
 
-        def my_callback_function(current_ts_instance): # accepts ONE argument: an instance of TwitterSearch
-            #print("In callback function")
-            queries, tweets_seen = current_ts_instance.get_statistics()
-            #print("%s queries & %s tweets seen" %(queries, tweets_seen))
-            if queries > 0 and (queries % 5) == 0: # trigger delay every 5th query
-                #print("Thats 5 queries. Sleeping for 60 secs")
-                time.sleep(60) # sleep for 60 seconds
+        twitSearchResults = ts.search_tweets_iterable(tso)
+        
+        queries, tweets_seen = ts.get_statistics()
 
-        #print("About to iterate over search results from TwitterSearch instance")
-        #for tweet in ts.search_tweets_iterable(tso, callback=my_callback_function):
-        for tweet in ts.search_tweets_iterable(tso):    
-            queries, tweets_seen = ts.get_statistics()
-            #print( '@%s tweeted: %s' % ( tweet['user']['screen_name'], tweet['text'] ) )
+        print("Debug: Queries done: %i. Tweets received: %i" %(queries, tweets_seen))
+
+        tweetCount = 0
+        for tweet in twitSearchResults:
+            #print(tweet['id'])
             tweetLastSeenID = tweet['id']
-            #print( '@%s tweet ID' %(tweetLastSeenID) )
-            return tweetLastSeenID, tweets_seen
-            break
+            tweetCount = tweetCount + 1
 
+        print("Debug: I counted %s tweets" % tweetCount)            
 
+        #print("Debug: Querying twitterSeach object for stats now")
+        #queries, tweets_seen = ts.get_statistics()
+        #print("Debug: Seen %s tweets in this search and used %s queries" %(queries, tweets_seen))
+        
+        #print("About to iterate over search results from TwitterSearch instance")
+        #print("Debug: In 'iterate over tweets' loop now")
+        #print("@%s tweeted: %s" % (tweet['user']['screen_name'], tweet['text']))
+        #tweetLastSeenID = tweet['id']
+        #print("@%s tweet ID" %(tweetLastSeenID) )
+        return tweetLastSeenID, tweets_seen
+        #break
 
     except TwitterSearchException as e:
         print(e)
-
     
-def generatePolargraphCommands(lastTweetCount, lastX, lastY):
-    #print("In generatePolargraphCommands()")
-    xGridSize = 100
-    yGridSize = 100
-    commandList = []
-    #Pen down
-    commandList.append("C13,END\n")
-    #Move pen to peak
-    tempString = "C17,"+str(int(lastX+(xGridSize/2)))+","+str(int(lastY+(lastTweetCount)))+",2,END\n"
-    #print(tempString)
-    commandList.append(tempString)
-    #Move pen to bottom of graph
-    lastX = int(lastX+xGridSize)
-    tempString = "C17,"+str(lastX)+","+str(int(lastY))+",2,END\n"
-    #print(tempString)
-    commandList.append(tempString)
-    commandList.append("C14,END\n")
-    return commandList, lastX, lastY
 
 def writeCommandToPolargraph(command):
     # Attempt to simplify the serial read/write logic
@@ -163,6 +168,7 @@ def writeCommandToPolargraph(command):
             print("MSG: '%s'" % dataRead)
 
 def setupPolargraph():
+
     setupCommand = ["C02,0.36,END\n"] #Set pen width in mm
     setupCommand.append("C24,610,1165,END\n") #Set machine size in mm
     setupCommand.append("C29,92,END\n") #Set mm per revolution
@@ -181,6 +187,7 @@ def setupPolargraph():
     print("")
     print("Setting up the controller...")
     print("")
+
     for each in setupCommand:
         writeCommandToPolargraph(each)    
     
@@ -225,8 +232,36 @@ def drawTo(x,y,segmentLength):
     print("Debug: drawTo(%s,%s) Command to run: %s" % ( x,y,(command,)))
     writeCommandToPolargraph(command)
     # and lift the pen afterwards so we don't bleed out the pen on the paper
+    # This should be done manually or we end up with lots of servo moves
+    #pen("up")
+
+def getCellCoordinates(xCell, yCell):
+    # Get the real coordinates (in MM) for the bottom left of the given cell
+    # Assume cell coordinates start at zero
+
+    #cellWidthInMM & cellWidthInHeight and offsets are globals
+
+    print("Debug:X: cellWidth: %s, page offset: %s, offset remainder: %s" %(cellWidthInMM, pageXOffsetInMM, xOffSetRemainder))
+    print("Debug:Y: cellWidth: %s, page offset: %s, offset remainder: %s" %(cellHeightInMM, pageYOffsetInMM, yOffSetRemainder))
+    xCoordsInMM = ((xCell + 1) * cellWidthInMM) + pageXOffsetInMM + xOffSetRemainder
+    yCoordsInMM = ((yCell + 1) * cellHeightInMM) + pageYOffsetInMM + yOffSetRemainder
+
+    return xCoordsInMM, yCoordsInMM
+
+def drawBlip(xCell, yCell, blipVal):
+    # This function will draw a 'blip' or 'peak' for the given value in the cell specified
+    # Do we need to start with a move or assume the pen is in the right place?
+    xCoordsInMM, yCoordsInMM = getCellCoordinates(xCell, yCell)
+    moveTo(xCoordsInMM, yCoordsInMM)
+
+    # Draw to a point midway along the width of the cell
+    # and the result of the twitter search high
+    drawTo((xCoordsInMM+(cellWidthInMM/2)),(yCoordsInMM-blipVal),2)
+
+    # Finally draw to the bottom right of the current cell
+    drawTo((xCoordsInMM + cellWidthInMM), yCoordsInMM, 2)
     pen("up")
-       
+    
 def test1():
     # Servo Up/Down 
     #commandList = ["C13,63,END\n","C14,125,END\n"]
@@ -255,13 +290,17 @@ def test1():
     # These coords are from my machine, are in mm and will draw the page edges
 
     # top left, top right, bottom right, top left
-    moveTo(95,240)
-    drawTo(515,240,2)
-    drawTo(515,834,2)
-    drawTo(95,834,2)
-    drawTo(95,240,2)
+    #moveTo(95,240)
+    #drawTo(515,240,2)
+    #drawTo(515,834,2)
+    #drawTo(95,834,2)
+    #drawTo(95,240,2)
     # home
-    moveTo(305,120)
+    #moveTo(305,120)
+
+    # Testing the 'blip' function. This draws a 'blip' of the given value in the chosen cell
+    # def drawBlip(xCell, yCell, blipVal)
+    drawBlip(0,0,25)
     
     #input("Test completed, press enter to continue") 
 
@@ -276,12 +315,27 @@ while True:
     #tweetLastSeenID, lastTweetCount = twitSearch(tweetLastSeenID)
     #print("Result of twitSearch(): Tweet Count=%s, Most recent Tweet ID=%s" %(lastTweetCount, tweetLastSeenID))
     #print("")
-  
+
+    print("Starting blip loop")
+    for y in range(numberOfRows, 0, -1):
+        print("Debug: y = %s of %s" %(y, numberOfRows))
+        for x in range(0,numberOfCols):
+            print("Debug: x = %s of %s" %(x, numberOfCols))
+            #print("Calling twitter search using tweetLastSeenID = %s" %tweetLastSeenID)
+            #tweetLastSeenID, lastTweetCount = twitSearch(tweetLastSeenID)
+            print("Debug: lastTweetCount = %s" %lastTweetCount)
+            #drawBlip(x,y,lastTweetCount)
+            drawBlip(x,y,random.randint(0,100))
+            print("sleeping...")
+            #time.sleep(60)
+    
 
     # Run a test
-    test1()
-   
-    print("sleeping...")
-    time.sleep(25) 
+    #test1()
+        
+    #print("sleeping...")
+    #time.sleep(60)
+
+    
 
 
