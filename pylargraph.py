@@ -19,7 +19,7 @@ pageHeightInMM = 594
 pageXOffsetInMM = 95
 pageYOffsetInMM = 240
 # Grid dimensions
-cellWidthInMM = 25
+cellWidthInMM = 10
 cellHeightInMM = 25
 numberOfCols = math.floor(pageWidthInMM / cellWidthInMM)
 numberOfRows = math.floor(pageHeightInMM / cellHeightInMM)
@@ -243,8 +243,8 @@ def getCellCoordinates(xCell, yCell):
 
     print("Debug:X: cellWidth: %s, page offset: %s, offset remainder: %s" %(cellWidthInMM, pageXOffsetInMM, xOffSetRemainder))
     print("Debug:Y: cellWidth: %s, page offset: %s, offset remainder: %s" %(cellHeightInMM, pageYOffsetInMM, yOffSetRemainder))
-    xCoordsInMM = ((xCell + 1) * cellWidthInMM) + pageXOffsetInMM + xOffSetRemainder
-    yCoordsInMM = ((yCell + 1) * cellHeightInMM) + pageYOffsetInMM + yOffSetRemainder
+    xCoordsInMM = int(round((xCell * cellWidthInMM) + pageXOffsetInMM + (xOffSetRemainder / 2)))
+    yCoordsInMM = int(round((yCell * cellHeightInMM) + cellHeightInMM + pageYOffsetInMM + (yOffSetRemainder / 2)))
 
     return xCoordsInMM, yCoordsInMM
 
@@ -258,13 +258,25 @@ def drawBlip(xCell, yCell, blipVal):
     # and the result of the twitter search high
     drawTo((xCoordsInMM+(cellWidthInMM/2)),(yCoordsInMM-blipVal),2)
 
+    # Draw a line graph (i.e. not going back to '0' at the end of the drawTo()
+    #drawTo((xCoordsInMM+cellWidthInMM),(yCoordsInMM-blipVal),2)
+
     # Finally draw to the bottom right of the current cell
     drawTo((xCoordsInMM + cellWidthInMM), yCoordsInMM, 2)
     pen("up")
-    
+
+
+def drawLineGraph(xCell, yCell, val):
+    # This function will draw a line graph data point
+   
+    xCoordsInMM, yCoordsInMM = getCellCoordinates(xCell, yCell)
+    # If this is the first cell in the row then we need to add a moveTo() func
+    if xCell == 0:
+        print("Debug: xCell == 0. Doing a move")
+        moveTo(xCoordsInMM, yCoordsInMM)
+    drawTo((xCoordsInMM+cellWidthInMM), (yCoordsInMM-val), 2)
+
 def test1():
-    # Servo Up/Down 
-    #commandList = ["C13,63,END\n","C14,125,END\n"]
     print("Test 1: Testing wrapper functions")
     print("")
 
@@ -300,12 +312,26 @@ def test1():
 
     # Testing the 'blip' function. This draws a 'blip' of the given value in the chosen cell
     # def drawBlip(xCell, yCell, blipVal)
-    drawBlip(0,0,25)
+    #drawBlip(0,0,25)
     
     #input("Test completed, press enter to continue") 
 
 
-    
+def test2():    
+    print("Starting draw loop")
+    for y in range(numberOfRows, 0, -1):
+        print("Debug: y = %s of %s" %(y, numberOfRows))
+        for x in range(0,numberOfCols):
+            print("Debug: x = %s of %s" %(x, numberOfCols))
+            #print("Calling twitter search using tweetLastSeenID = %s" %tweetLastSeenID)
+            #tweetLastSeenID, lastTweetCount = twitSearch(tweetLastSeenID)
+            print("Debug: lastTweetCount = %s" %lastTweetCount)
+            #drawBlip(x,y,lastTweetCount)
+            #drawBlip(x,y,random.randint(0,100))
+            drawLineGraph(x,y,random.randint(0,25))
+            print("sleeping...")
+            #time.sleep(60)
+
 
 # Setup the Polargraph once
 setupPolargraph()  
@@ -316,26 +342,8 @@ while True:
     #print("Result of twitSearch(): Tweet Count=%s, Most recent Tweet ID=%s" %(lastTweetCount, tweetLastSeenID))
     #print("")
 
-    print("Starting blip loop")
-    for y in range(numberOfRows, 0, -1):
-        print("Debug: y = %s of %s" %(y, numberOfRows))
-        for x in range(0,numberOfCols):
-            print("Debug: x = %s of %s" %(x, numberOfCols))
-            #print("Calling twitter search using tweetLastSeenID = %s" %tweetLastSeenID)
-            #tweetLastSeenID, lastTweetCount = twitSearch(tweetLastSeenID)
-            print("Debug: lastTweetCount = %s" %lastTweetCount)
-            #drawBlip(x,y,lastTweetCount)
-            drawBlip(x,y,random.randint(0,100))
-            print("sleeping...")
-            #time.sleep(60)
-    
-
     # Run a test
-    #test1()
+    test2()
         
     #print("sleeping...")
-    #time.sleep(60)
-
-    
-
-
+    time.sleep(60)
