@@ -30,8 +30,8 @@ pageYOffsetInMM = 240
 # Grid dimensions
 cellWidthInMM = 10
 cellHeightInMM = 25
-numberOfCols = math.floor(pageWidthInMM / cellWidthInMM)
-numberOfRows = math.floor(pageHeightInMM / cellHeightInMM)
+numberOfCols = int(math.floor(pageWidthInMM / cellWidthInMM))
+numberOfRows = int(math.floor(pageHeightInMM / cellHeightInMM))
 xOffSetRemainder = math.floor((pageWidthInMM - (numberOfCols * cellWidthInMM)) / 2)
 yOffSetRemainder = math.floor((pageHeightInMM - (numberOfRows * cellHeightInMM)) / 2)
 
@@ -150,7 +150,7 @@ def setupPolargraph():
     
     print("")
     print("Setup done!")
-    input("Manually set pen to home position and press enter to continue when done")
+    raw_input("Manually set pen to home position and press enter to continue when done")
     print("")
 
 
