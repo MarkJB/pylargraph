@@ -1,9 +1,17 @@
 from TwitterSearch import *
+import math
 import time
 import random
 import serial
+
+# Import my modules #
+# ik.py converts x,y mm to string lengths in whole steps.
+# twti.py searches twitter and returns the most recent tweetID and the count of tweets for the chosen keywords (set in twti.py).
+# myNotify.py sends an email (useful if we plan to change pen colour when a full page has been plotted.
 import ik
-import math
+import twti
+import myNotify
+
 
 # Polargraph settings
 # Serial settings
@@ -15,6 +23,7 @@ polargraphHeightInMM = 1165
 polargraphHomeXInMM = polargraphWidthInMM/2
 polargraphHomeYInMM = 120
 pageWidthInMM = 420
+#pageHeightInMM = 594
 pageHeightInMM = 594
 pageXOffsetInMM = 95
 pageYOffsetInMM = 240
@@ -39,64 +48,12 @@ serialPort = serial.Serial(COMPORT,BAUD,timeout=10)
 # Global variables for TwitterSearch
 tweetLastSeenID = 0
 lastTweetCount = 0
-lastX = 0
-lastY = 0
+
 
 # Other global variables
 
 
-def twitSearch(tweetLastSeen):
-    print("In function twitSearch()")
-    tweetSearchCount = 0
-    try:
-        tso = TwitterSearchOrder()
-        tso.set_keywords(['disaster'])
-        #tso.add_keyword(['poverty'])
-        tso.set_language('en')
-        #tso.set_include_entities(False)
 
-        if tweetLastSeen > 0:
-            print("I have a previous value for lastseen_id %s, asking for 100 results" % tweetLastSeen)
-            tso.set_since_id(tweetLastSeen)
-            tso.set_count(100)
-        else:
-            print("No value for lastseen_id, asking for one result")
-            tso.set_count(1)
-
-        ts = TwitterSearch(
-            consumer_key = '',
-            consumer_secret = '',
-            access_token = '',
-            access_token_secret = '')
-
-        twitSearchResults = ts.search_tweets_iterable(tso)
-        
-        queries, tweets_seen = ts.get_statistics()
-
-        print("Debug: Queries done: %i. Tweets received: %i" %(queries, tweets_seen))
-
-        tweetCount = 0
-        for tweet in twitSearchResults:
-            #print(tweet['id'])
-            tweetLastSeenID = tweet['id']
-            tweetCount = tweetCount + 1
-
-        print("Debug: I counted %s tweets" % tweetCount)            
-
-        #print("Debug: Querying twitterSeach object for stats now")
-        #queries, tweets_seen = ts.get_statistics()
-        #print("Debug: Seen %s tweets in this search and used %s queries" %(queries, tweets_seen))
-        
-        #print("About to iterate over search results from TwitterSearch instance")
-        #print("Debug: In 'iterate over tweets' loop now")
-        #print("@%s tweeted: %s" % (tweet['user']['screen_name'], tweet['text']))
-        #tweetLastSeenID = tweet['id']
-        #print("@%s tweet ID" %(tweetLastSeenID) )
-        return tweetLastSeenID, tweets_seen
-        #break
-
-    except TwitterSearchException as e:
-        print(e)
     
 
 def writeCommandToPolargraph(command):
@@ -258,9 +215,6 @@ def drawBlip(xCell, yCell, blipVal):
     # and the result of the twitter search high
     drawTo((xCoordsInMM+(cellWidthInMM/2)),(yCoordsInMM-blipVal),2)
 
-    # Draw a line graph (i.e. not going back to '0' at the end of the drawTo()
-    #drawTo((xCoordsInMM+cellWidthInMM),(yCoordsInMM-blipVal),2)
-
     # Finally draw to the bottom right of the current cell
     drawTo((xCoordsInMM + cellWidthInMM), yCoordsInMM, 2)
     pen("up")
@@ -275,47 +229,51 @@ def drawLineGraph(xCell, yCell, val):
         print("Debug: xCell == 0. Doing a move")
         moveTo(xCoordsInMM, yCoordsInMM)
     drawTo((xCoordsInMM+cellWidthInMM), (yCoordsInMM-val), 2)
+    pen("up")
+
+# funtion to test the move and draw functions
 
 def test1():
     print("Test 1: Testing wrapper functions")
     print("")
 
     # test pen() function
-    #pen("down")
-    #pen("up")
+    pen("down")
+    pen("up")
 
     # Move (don't draw) to the 4 corners of a box that defines the notional drawing area (end at the home position)
     # These coords are from my machine, are in mm and define the corners of the page extents
     
     # top left, top right, bottom right, top left
-    #moveTo(95,240)
-    #moveTo(515,240)
-    #moveTo(515,834)
-    #moveTo(95,834)
-    #moveTo(95,240)
+    moveTo(95,240)
+    moveTo(515,240)
+    moveTo(515,834)
+    moveTo(95,834)
+    moveTo(95,240)
 
     # home
-    #moveTo(305,120)
+    moveTo(305,120)
     
 
     # Draw a box around the notional drawing area (end at the home position)
     # These coords are from my machine, are in mm and will draw the page edges
 
     # top left, top right, bottom right, top left
-    #moveTo(95,240)
-    #drawTo(515,240,2)
-    #drawTo(515,834,2)
-    #drawTo(95,834,2)
-    #drawTo(95,240,2)
+    moveTo(95,240)
+    drawTo(515,240,2)
+    drawTo(515,834,2)
+    drawTo(95,834,2)
+    drawTo(95,240,2)
     # home
-    #moveTo(305,120)
+    moveTo(305,120)
 
     # Testing the 'blip' function. This draws a 'blip' of the given value in the chosen cell
     # def drawBlip(xCell, yCell, blipVal)
-    #drawBlip(0,0,25)
+    drawBlip(0,0,25)
     
-    #input("Test completed, press enter to continue") 
+    input("Test completed, press enter to continue") 
 
+# Test the grid and graphing functions
 
 def test2():    
     print("Starting draw loop")
@@ -332,18 +290,30 @@ def test2():
             print("sleeping...")
             #time.sleep(60)
 
+# Get the number of twitter search results and graph that using one of the draw funtions in a grid
+
+def graphTwitterSearchResults():
+    print("Starting draw loop")
+    for y in range(numberOfRows, 0, -1):
+        print("Debug: y = %s of %s" %(y, numberOfRows))
+        for x in range(0,numberOfCols):
+            print("Debug: x = %s of %s" %(x, numberOfCols))
+            print("Calling twitter search using tweetLastSeenID = %s" %tweetLastSeenID)
+            global tweetLastSeenID
+            result = twti.twitSearch(tweetLastSeenID)
+            print("Debug: twitter search results = %s" % (result,))
+            tweetLastSeenID = result[0]
+            #drawBlip(x,y,lastTweetCount)
+            #drawBlip(x,y,random.randint(0,100))
+            drawLineGraph(x,y,int(result[1]))
+            print("sleeping for 60 secs...")
+            time.sleep(60)
 
 # Setup the Polargraph once
 setupPolargraph()  
 
+# Do forever
 while True:
-    #print("Calling twitter search")
-    #tweetLastSeenID, lastTweetCount = twitSearch(tweetLastSeenID)
-    #print("Result of twitSearch(): Tweet Count=%s, Most recent Tweet ID=%s" %(lastTweetCount, tweetLastSeenID))
-    #print("")
-
-    # Run a test
-    test2()
-        
-    #print("sleeping...")
-    time.sleep(60)
+    
+    # Draw a graph of twitter search results
+    graphTwitterSearchResults()                  
