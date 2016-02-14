@@ -1,3 +1,11 @@
 Where applicable, copyright MakeBournemouth 2016 CCNC 2016
 
 Python based script to talk to a polargraph and graph the results of a twitter search.
+
+Requires pySerial and TwitterSearch (get them by running "pip install pyserial" and "pip install TwitterSearch")
+
+Also requires a twitter API key. You will need to setup a twitter dev account to get a key.
+
+Script should run with Python 2.7 & 3.x
+
+To use, edit machine specif config values in pylargraph.py then run pylargraph.py and follow the on screen instructions.
