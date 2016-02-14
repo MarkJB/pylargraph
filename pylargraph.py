@@ -1,33 +1,56 @@
+# Import python modules #
+# TwitterSearch and serial will probably need to be imported using pip
+# run the commands:
+# pip install TwitterSearch
+# pip install pyserial
+
 from TwitterSearch import *
-import math
-import time
-import random
-import serial
+import math # Used to manipulate numbers
+import time # Used for sleep() and to deal with dates in ik.py
+import random # Used to generate random numbers for tests
+import serial # Used to talk to the serial port
+import sys # Used to find out which version of python (2 or 3) is running this script
 
 # Import my modules #
-# ik.py converts x,y mm to string lengths in whole steps.
-# twti.py searches twitter and returns the most recent tweetID and the count of tweets for the chosen keywords (set in twti.py).
-# myNotify.py sends an email (useful if we plan to change pen colour when a full page has been plotted.
-import ik
-import twti
-import myNotify
+
+import ik # ik.py converts x,y mm to string lengths in whole steps.
+import twti # twti.py searches twitter and returns the most recent tweetID and the count of tweets for the chosen keywords (set in twti.py).
+import myNotify # myNotify.py sends an email (useful if we plan to change pen colour when a full page has been plotted.
 
 
 # Polargraph settings
 # Serial settings
-COMPORT = "COM6"
+COMPORT = "COM8"
+#COMPORT = "/dev/ttyUSB0"
 BAUD = 57600
+
 # Physical dimensions
-polargraphWidthInMM = 610
-polargraphHeightInMM = 1165
-polargraphHomeXInMM = polargraphWidthInMM/2
-polargraphHomeYInMM = 120
-pageWidthInMM = 420
-#pageHeightInMM = 594
-pageHeightInMM = 594
-pageXOffsetInMM = 95
-pageYOffsetInMM = 240
+# These are the dimensions that define the machine. Note: The home position in 'x' will be halfway between the motors but height is user defined
+# TBD: The pulley and stepper motor settings are also defined in ik.py - there is some redundancy/overlap there. Fix...
+polargraphWidthInMM = 622 # Width between pulleys
+polargraphHeightInMM = 1165 # Height of machine
+polargraphHomeXInMM = polargraphWidthInMM/2 # Home postition X
+polargraphHomeYInMM = 120 # Home position Y
+polargraphPulleyCircumferenceInMM = 92 # Effective circumference of pulleys
+polargraphStepsPerRev = 200 # Number of whole steps per revolution for motors
+polargraphStepsMultiplier = 16 # Stepper driver multiplier
+polargraphMotorMaxSpeed = 1200 # Max motor speed
+polargraphMotorAcceleration = 800 # How quickly the motor accelerates to get to its top speed
+polargraphPenUpSetting = 63 # Servo 'up' position
+polargraphPenDownSetting = 125 # Servo 'down' position
+
+pageWidthInMM = 420 # Drawing area in mm
+pageHeightInMM = 594 # Drawing area in mm
+pageXOffsetInMM = 95 # How far (in mm) from the edge of the left pullley is the paper?
+pageYOffsetInMM = 240 # How far (in mm) down from the imaginary line drawn between motor spindles?
+
+# Calculate where the home position is in steps (Tested this and it revealed an error in my previously asserted home position. Updated measurements)
+polargraphHomeXInSteps, polargraphHomeYInSteps, len1, len2 = ik.getStringLengths(polargraphHomeXInMM, polargraphHomeYInMM)
+print("Debug: Calculated home position = %s, %s, lengths %s, %s" %(polargraphHomeXInSteps, polargraphHomeXInSteps, len1, len2))
+
 # Grid dimensions
+# (Define the grid cell size and the grid is calculated from that and the page width. An offset is also calculated
+# to allow centering the grid within the page or drawing area)
 cellWidthInMM = 10
 cellHeightInMM = 25
 numberOfCols = int(math.floor(pageWidthInMM / cellWidthInMM))
@@ -42,18 +65,13 @@ yOffSetRemainder = math.floor((pageHeightInMM - (numberOfRows * cellHeightInMM))
 # exiting the function so the next call doesn't have to wait
 # for the polargraph to send another 'READY' message.
 polargraphReadySeen = False
-#Open serial port at baud and a timeout of secs
-serialPort = serial.Serial(COMPORT,BAUD,timeout=10)
 
 # Global variables for TwitterSearch
 tweetLastSeenID = 0
 lastTweetCount = 0
 
-
-# Other global variables
-
-
-
+#Open and connect serial port at baud and a timeout of secs
+serialPort = serial.Serial(COMPORT,BAUD,timeout=10)
     
 
 def writeCommandToPolargraph(command):
@@ -77,22 +95,28 @@ def writeCommandToPolargraph(command):
 
         # Reading the serial port by bytes avoids the need to skip the check if we have previously seen 'READY'
         # and also empties the buffer so we don't get out of sync if there is a long delay.
+        # First find out how many bytes to read there are waiting in the buffer.
+
         numberOfBytesWaiting = serialPort.in_waiting
+        # Uncomment the following two lines to see how many (if any) bytes are waiting.
         #if numberOfBytesWaiting > 0:
         #    print("Debug: Bytes waiting in serial port = %s" % numberOfBytesWaiting)
 
-        # Read the data as ASCII text (remove the terminating chars and decode bytes to ascii)
+        # Read the number of bytes waiting as ASCII text (remove the terminating chars and decode bytes to ascii)
         # Note strip() used with no parameters should strip whitespace chars (i.e. tab, space, linefeed etc)
+
         dataRead = serialPort.read(numberOfBytesWaiting).strip().decode()
         #print("Debug: dataRead is '%s'" % dataRead)
 
         # A short delay allows the serial buffer to fill up else we get partial reads of the 'READY' message.
+
         time.sleep(0.1)
         
-
         # If dataRead contains the text 'READY' or the write command has run and a subsequent read returned 'READY' and
-        # set the polargraphReadySeen flag (is this now redundant?)
-        #if dataRead == "READY" or polargraphReadySeen == True:
+        # set the polargraphReadySeen flag (is this now redundant?), check the exitFlag status, if it has been set we can exit the function
+        # by returning 'DONE' (we can ignore the returned value whereever we call this function from), otherwise we write the command, set the exit flag
+        # and go thru these steps again.
+        
         if "READY" in dataRead or polargraphReadySeen == True:
             #print("Debug: In 'READY' case: dataRead should be 'READY' (is '%s') or polargraphReadySeen should be true (is '%s')" % (dataRead, polargraphReadySeen))
             if not exitFlag:
@@ -125,22 +149,20 @@ def writeCommandToPolargraph(command):
             print("MSG: '%s'" % dataRead)
 
 def setupPolargraph():
-
+    # Build the commands to setup the machine. Pulls settings from config variables at top of this script
     setupCommand = ["C02,0.36,END\n"] #Set pen width in mm
-    setupCommand.append("C24,610,1165,END\n") #Set machine size in mm
-    setupCommand.append("C29,92,END\n") #Set mm per revolution
-    setupCommand.append("C30,200,END\n") #Set native motor steps per revolution
-    setupCommand.append("C31,1200,1,END\n") #Set motor speed
-    setupCommand.append("C32,800,1,END\n") #Set motor acceleration
-    setupCommand.append("C37,16,END\n") #Set micro stepping multiplier
-    setupCommand.append("C45,63,125,1,END\n") #Sets pen lift range
-    #setupCommand.append("C09,789,1002,END\n") #Set pen position
-    #setupCommand.append("C01,711,711,END\n") #Move to pen position (711,711 = home)
-    setupCommand.append("C09,711,711,END\n") #Set pen position as home (you can then manually set the pen to a known position) 305mm x 119mm is home on my machine
-    setupCommand.append("C13,63,END\n") #Set drop pen position
-    setupCommand.append("C14,125,END\n") #Set lift pen position
-    #setupCommand.append("")
+    setupCommand.append("C24,"+str(polargraphWidthInMM)+","+str(polargraphHeightInMM)+",END\n") #Set machine size in mm
+    setupCommand.append("C29,"+str(polargraphPulleyCircumferenceInMM)+",END\n") #Set mm per revolution
+    setupCommand.append("C30,"+str(polargraphStepsPerRev)+",END\n") #Set native motor steps per revolution
+    setupCommand.append("C31,"+str(polargraphMotorMaxSpeed)+",1,END\n") #Set motor speed
+    setupCommand.append("C32,"+str(polargraphMotorAcceleration)+",1,END\n") #Set motor acceleration
+    setupCommand.append("C37,"+str(polargraphStepsMultiplier)+",END\n") #Set micro stepping multiplier
+    setupCommand.append("C45,"+str(polargraphPenUpSetting)+","+str(polargraphPenDownSetting)+",1,END\n") #Sets pen lift range
+    setupCommand.append("C09,"+str(polargraphHomeXInSteps)+","+str(polargraphHomeYInSteps)+",END\n") #Set pen position as home (you can then manually set the pen to a known position) 311mm x 120mm is home on my machine
+    setupCommand.append("C13,"+str(polargraphPenUpSetting)+",END\n") #Set drop pen position
+    setupCommand.append("C14,"+str(polargraphPenDownSetting)+",END\n") #Set lift pen position
 
+    print("Debug: Command list contains %s" %(setupCommand,))
     print("")
     print("Setting up the controller...")
     print("")
@@ -150,7 +172,17 @@ def setupPolargraph():
     
     print("")
     print("Setup done!")
-    raw_input("Manually set pen to home position and press enter to continue when done")
+
+    # Check the version of Python you are running, and select the appropriate input version
+    majorVersion = sys.version_info[0]
+    print("Debug: Python running this is has major version no %s" % majorVersion)
+
+    if majorVersion == 2:
+        # Python 2.x
+        raw_input("Manually set pen to home position and press enter to continue when done")
+    else:
+        # Python 3.x
+        input("Manually set pen to home position and press enter to continue when done")
     print("")
 
 
@@ -198,8 +230,8 @@ def getCellCoordinates(xCell, yCell):
 
     #cellWidthInMM & cellWidthInHeight and offsets are globals
 
-    print("Debug:X: cellWidth: %s, page offset: %s, offset remainder: %s" %(cellWidthInMM, pageXOffsetInMM, xOffSetRemainder))
-    print("Debug:Y: cellWidth: %s, page offset: %s, offset remainder: %s" %(cellHeightInMM, pageYOffsetInMM, yOffSetRemainder))
+    #print("Debug:X: cellWidth: %s, page offset: %s, offset remainder: %s" %(cellWidthInMM, pageXOffsetInMM, xOffSetRemainder))
+    #print("Debug:Y: cellWidth: %s, page offset: %s, offset remainder: %s" %(cellHeightInMM, pageYOffsetInMM, yOffSetRemainder))
     xCoordsInMM = int(round((xCell * cellWidthInMM) + pageXOffsetInMM + (xOffSetRemainder / 2)))
     yCoordsInMM = int(round((yCell * cellHeightInMM) + cellHeightInMM + pageYOffsetInMM + (yOffSetRemainder / 2)))
 
@@ -278,9 +310,9 @@ def test1():
 def test2():    
     print("Starting draw loop")
     for y in range(numberOfRows, 0, -1):
-        print("Debug: y = %s of %s" %(y, numberOfRows))
         for x in range(0,numberOfCols):
             print("Debug: x = %s of %s" %(x, numberOfCols))
+            print("Debug: y = %s of %s" %(y, numberOfRows))
             #print("Calling twitter search using tweetLastSeenID = %s" %tweetLastSeenID)
             #tweetLastSeenID, lastTweetCount = twitSearch(tweetLastSeenID)
             print("Debug: lastTweetCount = %s" %lastTweetCount)
@@ -289,6 +321,7 @@ def test2():
             drawLineGraph(x,y,random.randint(0,25))
             print("sleeping...")
             #time.sleep(60)
+
 
 # Get the number of twitter search results and graph that using one of the draw funtions in a grid
 
@@ -316,4 +349,5 @@ setupPolargraph()
 while True:
     
     # Draw a graph of twitter search results
-    graphTwitterSearchResults()                  
+    graphTwitterSearchResults()
+    

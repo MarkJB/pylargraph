@@ -1,14 +1,17 @@
 import math
 
-#Distances should all be in 'Steps' (except for actual measurements where specified)
+# Distances should all be in 'whole steps' (except for actual measurements where specified)
 
-motorDistance = 610 # in mm (610 on my machine)
+# Note: There are differences in the way Python 2 & 3 handle rounding
+# Added the float() functions when calculating wholeStepsPerMM
+
+motorDistance = 622 # in mm (622 on my machine)
 motorStepsPerRev = 200
 motorStepsMultiplier = 16
 pulleyCircumference = 92 # in mm (this is mm per revolution)
-microStepsPerMM = int(round((motorStepsPerRev * motorStepsMultiplier) / pulleyCircumference))
-# Looks like the native coordinate system is in WHOLE STEPS!!!
-wholeStepsPerMM = motorStepsPerRev / pulleyCircumference
+microStepsPerMM = round((motorStepsPerRev * motorStepsMultiplier) / pulleyCircumference)
+# The native coordinate system is in WHOLE STEPS!!!
+wholeStepsPerMM = float(motorStepsPerRev) / float(pulleyCircumference)
 motorDistanceInSteps = wholeStepsPerMM * motorDistance
 motorDistanceMidPointInSteps = motorDistanceInSteps / 2
 
@@ -22,8 +25,8 @@ def printInfo():
 # getStringLengths() accepts a two integers that specify coordinates in mm
 
 def getStringLengths(x,y):
-    #print("x = %s" % x)
-    #print("y = %s" % y)
+    #print("Debug: x = %s" % x)
+    #print("Debug: y = %s" % y)
     #c = motorDistanceInSteps - x
     c = motorDistance - x
     len1 = math.sqrt((x*x)+(y*y))
@@ -42,28 +45,19 @@ def getStringLengths(x,y):
 
 def test1():
     # Test the output of the function
-    # On my machine, the home position is at 305mm from the left
+    # On my machine, the home position is at 311mm from the left
     # by 120mm from the top. In the polargraph software, this give me
-    # string lengths of 328mm x 328mm and 'native' coords of 711,711
-    result = getStringLengths(305,120)
+    # string lengths of 333mm x 333mm and 'native' coords of 725,725
+    result = getStringLengths(311,120)
     print("")
-    print("Position to generate coordinates for, are 305mm x 120mm")
-    print("Expected results are 328mm x 328mm and (711,711)")
+    print("Position to generate coordinates for, are 311mm x 120mm")
+    print("Expected results are 333mm x 333mm and (725,725)")
     print("getStringLength() returns: String lengths: %smm x %smm and native coords are: (%s,%s)" % (result[2],result[3],result[0],result[1]))
 
-def test2():
-    # Test an arbitrary known point to confirm the expected results
-    # 100mm x 245mm = a string length (in mm) of 265mm & 566mm
-    # Native whole steps = 578,1228
-    
-    result = getStringLengths(100,245)
-    print("")
-    print("Position to generate coordinates for, are 100mm x 245mm")
-    print("Expected results are 265mm x 566mm and (578,1228)")
-    print("getStringLength() returns: String lengths: %smm x %smm and native coords are: (%s,%s)" % (result[2],result[3],result[0],result[1]))
-    #print("String lengths are: %s" % (result,))
 
-#Uncomment these to test. Comment when calling from another python module.
-#printInfo()
-#test1()
-#test2()
+# If script is called on its own (i.e. not as an imported module) run this
+if __name__ == "__main__": 
+    printInfo()
+    test1()
+
+

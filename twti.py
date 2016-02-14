@@ -11,7 +11,7 @@ lastTweetCount = 0
 twitterSearchCount = 0
 
 def twitSearch(tweetLastSeen):
-    print("In function twitSearch()")
+    #print("Debug: In function twitSearch()")
     tweetSearchCount = 0
     try:
         tso = TwitterSearchOrder()
@@ -51,22 +51,21 @@ def twitSearch(tweetLastSeen):
 ##                #print("Thats 5 queries. Sleeping for 60 secs")
 ##                #time.sleep(60) # sleep for 60 seconds
 
-        queries, tweets_seen = ts.get_statistics()
-        print("Debug: %s queries & %s tweets seen" %(queries, tweets_seen))
-
-        print("Debug: About to iterate over search results from TwitterSearch instance")
-        #for tweet in ts.search_tweets_iterable(tso, callback=my_callback_function):
         #queries, tweets_seen = ts.get_statistics()
-        
+        #print("Debug: %s queries & %s tweets seen" %(queries, tweets_seen))
+
+        #print("Debug: About to iterate over search results from TwitterSearch instance")
+        #for tweet in ts.search_tweets_iterable(tso, callback=my_callback_function):
+                
         tweets_seen = 0        
         currentTweetID = 0
         lastTweetID = 0
+
         for tweet in ts.search_tweets_iterable(tso):    
             queries, tweets_seen_by_stats = ts.get_statistics()
             print("Debug: stats: %s queries & %s tweets seen" %(queries, tweets_seen_by_stats))
             rateLimitRemaining = ts.get_metadata()['x-rate-limit-remaining']
             rateLimitReset = ts.get_metadata()['X-Rate-Limit-Reset']
-            #print("Debug: Reset at %s" % datetime.datetime.fromtimestamp(int(rateLimitReset)))
             print("Debug: Rate limit resets at %s and has %s queries remaining" %(datetime.datetime.fromtimestamp(int(rateLimitReset)), rateLimitRemaining))
             currentTweetID = tweet['id']
             print("Debug: Current tweetID %s" % currentTweetID)
@@ -78,8 +77,8 @@ def twitSearch(tweetLastSeen):
             print( 'Debug: In tweet iter @%s tweet id: %s' % ( tweet['user']['screen_name'], tweet['id'] ) )
             tweets_seen = tweets_seen + 1
             print("Debug: tweets_seens: %s" % tweets_seen)
-            #break
-        print('Debug: about to return value @%s tweet ID' % lastTweetID )
+            
+        print('Debug: about to return tweet ID @%s' % lastTweetID )
         global twitterSearchCount
         twitterSearchCount = twitterSearchCount + 1
         print("Debug: This is twitter search number: %s" % twitterSearchCount)
@@ -89,28 +88,26 @@ def twitSearch(tweetLastSeen):
     except TwitterSearchException as e:
         print(e)
 
+# If script is called on its own (i.e. not as an imported module) run this
+if __name__ == "__main__": 
 
-  
-
-#while True:
-#    print("Calling twitter search")
-#    print("Global var tweetLastSeenID is : %s" % tweetLastSeenID)
-    #try:
-    #result = twitSearch(tweetLastSeenID)
-    #tweetLastSeenID = result[0]
-##    except:
-##        # twitSearch failed to return a value setting tweets seen value to zero
-##        # and leaving the last tweet ID unchanged
-##        print("Debug: Twitter search prodced an error, continuting with previous values")
-##        
-##        input("So there has been that annoying twitterSearch error... can we recover? Press return to see...")
-##        result = 0
-    #result = twitSearch(tweetLastSeenID)
-    #tweetLastSeenID = result[0]
-    #print(tweetLastSeenID)
-    #print("Result of twitSearch(): Tweet Count=%s, Most recent Tweet ID=%s" %(lastTweetCount, tweetLastSeenID))
-    #print("Result of twitSearch(): ")
-    #print(result)
-    #print("")
-
-    #time.sleep(60)
+    while True:
+        print("Running standalone: Calling twitter search")
+        print("Global var tweetLastSeenID is : %s" % tweetLastSeenID)
+        try:
+            result = twitSearch(tweetLastSeenID)
+            tweetLastSeenID = result[0]
+        except:
+            # twitSearch failed to return a value setting tweets seen value to zero
+            # and leaving the last tweet ID unchanged
+            print("Debug: Twitter search prodced an error, continuting with previous values")
+            
+            input("So there has been that annoying twitterSearch error... can we recover? Press return to see...")
+            result = 0
+            result = twitSearch(tweetLastSeenID)
+            tweetLastSeenID = result[0]
+        print(tweetLastSeenID)
+        print("Result of twitSearch(): Tweet Count=%s, Most recent Tweet ID=%s" %(lastTweetCount, tweetLastSeenID))
+        print("sleeping for 60 secs...")
+        print("")
+        time.sleep(60)
