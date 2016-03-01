@@ -237,6 +237,15 @@ def getCellCoordinates(xCell, yCell):
 
     return xCoordsInMM, yCoordsInMM
 
+
+def scaleHeight(val, scaleHeight):
+    # This function scales the given value (val) so that it fits within the given cell height (scaleHeight)
+    # Returns an integer so it will cause some loss of resolution but that is acceptable for the twitter graph
+    result = int(val * (scaleHeight/100))
+
+    return result
+
+
 def drawBlip(xCell, yCell, blipVal):
     # This function will draw a 'blip' or 'peak' for the given value in the cell specified
     # Do we need to start with a move or assume the pen is in the right place?
@@ -338,7 +347,13 @@ def graphTwitterSearchResults():
             tweetLastSeenID = result[0]
             #drawBlip(x,y,lastTweetCount)
             #drawBlip(x,y,random.randint(0,100))
-            drawLineGraph(x,y,int(result[1]))
+            #drawLineGraph(x,y,int(result[1]))
+
+            # This should constrain the graph height to the defined cell height in mm
+            # It calls the drawLineGraph() function and passes in the result of the scaleHeight() function
+            # which takes the twitter search result and the cellHeightInMM and returns the value scaled
+            drawLineGraph(x,y,scaleHeight(int(result[1]), cellHeightInMM))
+
             print("sleeping for 60 secs...")
             time.sleep(60)
 
