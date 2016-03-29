@@ -16,7 +16,7 @@ def twitSearch(tweetLastSeen):
     try:
         tso = TwitterSearchOrder()
         #tso.set_keywords(['disaster','banking'], or_operator = True)
-        tso.set_keywords(['disaster','poverty','banking','homless'], or_operator = True)
+        tso.set_keywords(['disaster','poverty','banking','homeless'], or_operator = True)
         #tso.add_keyword('poverty')
         #tso.add_keyword('disaster')
         #tso.add_keyword('banking')
