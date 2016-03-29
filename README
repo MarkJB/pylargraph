@@ -8,4 +8,6 @@ Also requires a twitter API key. You will need to setup a twitter developer acco
 
 Script should run with Python 2.7 & 3.x
 
-To use, edit machine specific config values in pylargraph.py then run pylargraph.py and follow the on screen instructions.
+To use, edit machine specific config values in pylargraph.py (and ik.py) then run pylargraph.py and follow the on screen instructions.
+
+Note: Currently some config values are duplicated across modules - need to fix...
